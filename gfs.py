@@ -96,7 +96,7 @@ class GoogleFormSpammer:
         A function to scrape the form to get all the required post data
 
             Parameters:
-                data_length (int): The length of the garabage data that is sent
+                data_length (int): The length of the garbage data that is sent
 
             Returns:
                 post_data (dict): A dictionary of the post data
@@ -148,9 +148,10 @@ class GoogleFormSpammer:
                 None
         """
         while True:
-            worker = queue.get()
+            _ = queue.get()
             self.post_data()
             queue.task_done()
+
 
 if __name__ == '__main__':
 
@@ -166,14 +167,9 @@ if __name__ == '__main__':
         print(f'[bold #F04349]Invalid argument, supply a form url[/bold #F04349]')
         exit(-1)
 
-    try:
-        spammer = GoogleFormSpammer(args.url)
-    except GoogleFormSpammerException as exception:
-        print('[bold #F04349]Invalid url was supplied[/bold #F04349]')
-        exit(-1)
-    
     print(f'[bold #54E81E]Starting spammer on URL [bold #34EDE7]{args.url}[/bold #34EDE7] with [bold #34EDE7]{args.requests}[/bold #34EDE7] requests and [bold #34EDE7]{args.threads}[/bold #34EDE7] threads[/bold #54E81E]')
 
+    spammer = GoogleFormSpammer(args.url)
 
     start = time.perf_counter()
 
@@ -184,15 +180,15 @@ if __name__ == '__main__':
         worker.daemon = True
         worker.start()
 
-    for worker in range(args.requests):
-        queue.put(worker)
+    for request_worker in range(args.requests):
+        queue.put(request_worker)
 
     queue.join()
 
     total_time = time.perf_counter() - start
     req_per_ns = args.requests / total_time
-    
+
     print('[bold #07FA1C]Script finished![/bold #07FA1C]')
-    print(f'[bold #2ECC71]Requests sent: {args.requests} req[/bold #2ECC71]')
+    print(f'[bold #2ECC71]Requests sent: {args.requests}req[/bold #2ECC71]')
     print(f'[bold #2ECC71]Execution time: {total_time}s[/bold #2ECC71]')
     print(f'[bold #2ECC71]Speed: {req_per_ns} req/s[/bold #2ECC71]')
