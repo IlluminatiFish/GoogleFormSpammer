@@ -11,11 +11,13 @@ from queue import Queue
 from threading import Thread
 from bs4 import BeautifulSoup
 
+
 class GoogleFormSpammerException(Exception):
     """
     A class to be raised when errors occur
     """
     pass
+
 
 class GoogleFormSpammer:
     """
