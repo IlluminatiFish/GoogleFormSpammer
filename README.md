@@ -1,5 +1,5 @@
 # GFS - Google Form Spammer
-<p align="center">A simple CLI script to spam Google Forms used by Crypto Wallet scammers to collect stolen data</p>
+<p align="center">A simple CLI script to spam Google Forms used by various scammers to collect stolen data</p>
 
 
 <p align="center">
