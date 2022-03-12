@@ -6,10 +6,50 @@ import string
 import requests
 import argparse
 
+from enum import Enum
 from rich import print
 from queue import Queue
 from threading import Thread
 from bs4 import BeautifulSoup
+from typing import Dict, List
+
+
+class FieldType(Enum):
+    """
+    An enum to define all possible field types
+    """
+    SHORT_TEXT = 0
+    LONG_TEXT = 1
+    MULTIPLE_CHOICE = 2
+    CHECKBOX = 3
+    DROPDOWN = 4
+    LINEAR_SCALE = 5
+    MULTI_CHOICE_GRID = 7
+    DATE = 9
+    TIME = 10
+
+
+class Field(object):
+    """
+    A Field object used to define fields
+    """
+    validation: bool
+    required: bool
+    has_choices: bool
+
+    def __init__(self):
+        self.type = None
+        self.name = None
+        self.id = None
+        self.choices = []
+
+
+class Choice(object):
+    """
+    A Choice object used to define choices
+    """
+    def __init__(self):
+        self.choice_name = None
 
 
 class GoogleFormSpammerException(Exception):
@@ -23,15 +63,14 @@ class GoogleFormSpammer:
     """
     A class to hold all functions for the script
     """
-    def __init__(self, form_url: str = None) -> None:
+
+    def __init__(self, form_url: str = None, required_only: bool = False) -> None:
         """
         The class constructor
 
             Parameters:
                 form_url (str): The URL of the form to be used
-
-            Returns:
-                None
+                required_only (bool): If you only want to fill in the required fields
 
             Raises:
                 GoogleFormSpammerException: If `form_url` is None or if it is not a valid form url
@@ -43,32 +82,31 @@ class GoogleFormSpammer:
             raise GoogleFormSpammerException('form_url is not valid')
 
         self.form_url = form_url
+        self.required_only = required_only
+        self.scraped_data = self._scrape_form()
 
-    def _scrape_form(self) -> dict:
+    def _scrape_form(self) -> List[Field]:
         """
         A function to scrape the form to get all the required post data
 
-            Parameters:
-                None
-
             Returns:
-                scraped_data (dict): A dictionary of the scraped form data
+                fields (List[Field]): A list of fields from the scraped form data
 
-            Raises:
-                None
         """
-        scraped_data = {}
-
         response = requests.get(self.form_url)
-
         soup = BeautifulSoup(response.text, 'html.parser')
+
         divs = soup.find_all('div')
 
         replacements = {'%.@.': '[', 'null': '"null"', 'true': '"true"', 'false': '"false"'}
 
+        fields = []
+
         for div in divs:
+
             # Find all div tags with the attribute `jsmodel`
             if 'jsmodel' in div.attrs.keys():
+
                 data_params = div.attrs.get('data-params')
 
                 # Fix array so it can be handled by Python
@@ -78,22 +116,38 @@ class GoogleFormSpammer:
                 # Literal eval the string list
                 data_params_eval = ast.literal_eval(data_params)
 
-                question = data_params_eval[0][1]
                 response_data = data_params_eval[0][4]
 
-                entry_id = response_data[0][0]
-                multi_option_responses = response_data[0][1]
+                # Create a new Field object for each field we come across
+                field = Field()
 
-                possible_responses = [multi_option_response[0] for multi_option_response in multi_option_responses]
+                # Populate the attributes with the parsed field data
+                field.type = FieldType(data_params_eval[0][3])
+                field.name = data_params_eval[0][1]
+                field.id = response_data[0][0]
 
-                if len(multi_option_responses) > 0:
-                    scraped_data[question] = (entry_id, True, possible_responses)
-                else:
-                    scraped_data[question] = (entry_id, False, None)
+                field.validation = len(response_data[0][4]) > 0
+                field.required = True if response_data[0][2] == 'true' else False
+                field.has_choices = False
 
-        return scraped_data
+                if len(response_data[0][1]) > 0:
 
-    def generate_post_data(self, data_length: int = 50) -> dict:
+                    choices = []
+
+                    for raw_choice in response_data[0][1]:
+
+                        choice = Choice()
+                        choice.choice_name = raw_choice[0]
+                        choices.append(choice)
+
+                    field.has_choices = len(choices) > 0
+                    field.choices = choices
+
+                fields.append(field)
+
+        return fields
+
+    def generate_post_data(self, data_length: int = 50) -> Dict[str, str]:
         """
         A function to scrape the form to get all the required post data
 
@@ -101,22 +155,44 @@ class GoogleFormSpammer:
                 data_length (int): The length of the garbage data that is sent
 
             Returns:
-                post_data (dict): A dictionary of the post data
+                post_data (Dict[str, str]): A dictionary of the post data
 
-            Raises:
-                None
         """
-        chars = string.ascii_letters + string.digits
-        scraped_data = self._scrape_form()
         post_data = {}
+        chars = string.ascii_letters + string.digits
 
-        for _, (entry_id, is_multi_option, options) in scraped_data.items():
-            if is_multi_option:
-                selected_option = random.choice(options)
+        scraped_form_data = self.scraped_data
+
+        # Gets the list of only required fields if you do not want to fill the whole form
+        if self.required_only:
+            scraped_form_data = [field for field in self.scraped_data if field.required]
+
+        for field in scraped_form_data:
+
+            # To support the date and time fields we must make a specific case for each
+            if field.type == FieldType.TIME:
+                post_data[f'entry.{field.id}_hour'] = f'{random.randint(0, 23):02d}'
+                post_data[f'entry.{field.id}_minute'] = f'{random.randint(0, 59):02d}'
+
+            elif field.type == FieldType.DATE:
+                post_data[f'entry.{field.id}_year'] = str(random.randint(2000, 2022))
+                post_data[f'entry.{field.id}_month'] = str(random.randint(1, 12))
+                post_data[f'entry.{field.id}_day'] = str(random.randint(1, 31))
+
             else:
-                selected_option = ''.join(random.choice(chars) for _ in range(data_length))
 
-            post_data[f'entry.{entry_id}'] = str(selected_option)
+                # Only field that has validation is the email fields if found
+                if field.validation:
+                    email_providers = ['yahoo.com', 'hotmail.com', 'outlook.net', 'gmail.com']
+                    selected_choice = ''.join(random.choice(chars) for _ in range(data_length)) + '@' + random.choice(email_providers)
+
+                elif field.has_choices:
+                    selected_choice = random.choice(field.choices).choice_name
+
+                else:
+                    selected_choice = ''.join(random.choice(chars) for _ in range(data_length))
+
+                post_data[f'entry.{field.id}'] = selected_choice
 
         return post_data
 
@@ -124,30 +200,16 @@ class GoogleFormSpammer:
         """
         A function to post the data to the form
 
-            Parameters:
-                None
-
             Returns:
-                response.status_code (int): An integer stating the HTTP status code of the webserver
+                response.status_code (int): An integer stating the HTTP status code of the response
 
-            Raises:
-                None
         """
-        response = requests.post(self.form_url, params=self.generate_post_data())
+        response = requests.post(self.form_url, params = self.generate_post_data())
         return response.status_code
 
     def threader(self) -> None:
         """
         A function to be used as a target function in the threading
-
-            Parameters:
-                None
-
-            Returns:
-                None
-
-            Raises:
-                None
         """
         while True:
             _ = queue.get()
@@ -157,11 +219,12 @@ class GoogleFormSpammer:
 
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser(description='A Google form spamming script')
+    parser = argparse.ArgumentParser(description='A script to spam Google Forms with garbage data')
 
+    parser.add_argument('-u', '--url', type = str, required = True, help = 'The url of the google form')
+    parser.add_argument('-o', '--required', type = bool, default = False, help = 'If you only want to fill in the required fields')
     parser.add_argument('-r', '--requests', type=int, default=500, help='The amount of requests to execute')
-    parser.add_argument('-u', '--url', type=str, help='The url of the google form')
-    parser.add_argument('-t', '--threads', type=int, default=500, help='The amount of threads to use')
+    parser.add_argument('-t', '--threads', type=int, default=50, help='The amount of threads to use')
 
     args = parser.parse_args()
 
@@ -169,9 +232,19 @@ if __name__ == '__main__':
         print(f'[bold #F04349]Invalid argument, supply a form url[/bold #F04349]')
         exit(-1)
 
-    print(f'[bold #54E81E]Starting spammer on URL [bold #34EDE7]{args.url}[/bold #34EDE7] with [bold #34EDE7]{args.requests}[/bold #34EDE7] requests and [bold #34EDE7]{args.threads}[/bold #34EDE7] threads[/bold #54E81E]')
+    print(
+          '\n'
+    	  f'[bold #FC970F]Starting spammer...[/bold #FC970F]\n'
+          f'[bold #EEBD31]'
+          f'URL: {args.url}\n'
+          f'Requests: {args.requests}\n'
+          f'Threads: {args.threads}\n'
+          f'Required Fields: {args.required}\n'
+          f'[/bold #EEBD31]'
+	      '\n'
+    )
 
-    spammer = GoogleFormSpammer(args.url)
+    spammer = GoogleFormSpammer(args.url, args.required)
 
     start = time.perf_counter()
 
@@ -190,7 +263,12 @@ if __name__ == '__main__':
     total_time = time.perf_counter() - start
     req_per_ns = args.requests / total_time
 
-    print('[bold #07FA1C]Script finished![/bold #07FA1C]')
-    print(f'[bold #2ECC71]Requests sent: {args.requests}req[/bold #2ECC71]')
-    print(f'[bold #2ECC71]Execution time: {total_time}s[/bold #2ECC71]')
-    print(f'[bold #2ECC71]Speed: {req_per_ns} req/s[/bold #2ECC71]')
+    print(
+          '\n'
+    	  '[bold #07FA1C]Script finished![/bold #07FA1C]\n'
+    	  f'[bold #31EE42]'
+    	  f'Execution time: {total_time}s\n'
+    	  f'Speed: {req_per_ns} req/s\n'
+    	  f'[/bold #31EE42]'
+    	  '\n'
+    )
