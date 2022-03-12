@@ -7,11 +7,19 @@
 </p>
 
 
+## 💻 Screenshots
+
+<p align="center">
+  <a href="https://opensource.org/licenses/MIT"><img src="https://i.ibb.co/JrQwbqX/demo.png"></a>
+</p>
+
+
 ## ✨ Features
 
 - Garbage data generation
 - Random option selection in multiple choice questions
 - Use of threads for faster request sending
+- Filling in non-textual & validated fields
 
 
 ## ➡️ Installation
