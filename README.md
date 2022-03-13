@@ -42,7 +42,7 @@ usage: gfs.py [-h] -u URL [-o REQUIRED] [-r REQUESTS] [-t THREADS]
 
 A script to spam Google Forms with garbage data
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   -u URL, --url URL     The url of the google form
   -o REQUIRED, --required REQUIRED
