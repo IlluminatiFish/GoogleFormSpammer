@@ -10,7 +10,7 @@
 ## 💻 Screenshots
 
 <p align="center">
-  <a href="https://opensource.org/licenses/MIT"><img src="https://i.ibb.co/JrQwbqX/demo.png"></a>
+  <a href="https://i.ibb.co/JrQwbqX/demo.png"><img src="https://i.ibb.co/JrQwbqX/demo.png"></a>
 </p>
 
 
