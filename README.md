@@ -1,4 +1,4 @@
-# GFS - Google Form Spammer
+<h1 align="center">GFS - Google Form Spammer</h1>
 <p align="center">A simple CLI script to spam Google Forms used by various scammers to collect stolen data</p>
 
 
