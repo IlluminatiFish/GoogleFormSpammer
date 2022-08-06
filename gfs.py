@@ -284,7 +284,7 @@ class GoogleFormSpammer:
             A function to scrape the form to get all the required post data.
 
             Args:
-                data_length (int): The length of the garbage data that is sent, defaults to 50.
+                data_length (int): The length of the garbage data that is sent, defaults to 80.
 
             Returns:
                 post_data (Dict[str, str]): A dictionary of the post data.
