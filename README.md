@@ -20,7 +20,7 @@
 - Random option selection in multiple choice questions
 - Use of threads for faster request sending
 - Filling in non-textual & validated fields
-- Field validation support
+- Form validation
 
 
 ## ➡️ Installation
