@@ -132,7 +132,7 @@ class GFSLogger:
 
 class GoogleFormSpammer:
 
-    VERSION = '0.4'
+    VERSION = '0.5'
 
     def __init__(self, form_url: str = None, required_only: bool = False) -> None:
         """
@@ -351,7 +351,7 @@ class GoogleFormSpammer:
 
                 elif field.type in VALIDATED_FIELDS:
 
-                    if field.type in (FieldType.SHORT_ANSWER, FieldType.PARAGRAPH):
+                    if field.type == FieldType.PARAGRAPH:
 
                         # The REGEX & LENGTH set of validators are exclusive to the SHORT_ANSWER & PARAGRAPH field types
 
@@ -367,7 +367,7 @@ class GoogleFormSpammer:
                                 # Special thanks to Daniel for this (https://stackoverflow.com/a/957581)
                                 field_value = rstr.xeger(f'^((?!{field.validator[0]}).)*$')
 
-                        elif field.validator_type in (ValidatorType.LENGTH, ValidatorType.PARAGRAPH_LENGTH):
+                        elif field.validator_type == ValidatorType.PARAGRAPH_LENGTH:
 
                             validator_length = int(field.validator[0])
 
@@ -387,21 +387,20 @@ class GoogleFormSpammer:
                             )
 
                     elif field.type == FieldType.SHORT_ANSWER:
-
                         # The TEXT & NUMBER set of validators are exclusive to the SHORT_ANSWER field type
 
                         if field.validator_type == ValidatorType.TEXT:
 
                             # Fields that require emails as input
                             if field.validator_sub_type == ValidatorSubType.EMAIL:
+
                                 email_providers = [
                                     "yahoo.com",
                                     "hotmail.com",
                                     "outlook.net",
                                     "gmail.com",
                                 ]
-                                field_value = "".join(random.choice(chars) for _ in range(data_length)) \
-                                                  + "@" + random.choice(email_providers)
+                                field_value = "".join(random.choice(chars) for _ in range(data_length)) + "@" + random.choice(email_providers)
 
                             elif field.validator_sub_type == ValidatorSubType.URL:
                                 field_value = rstr.xeger("http[s]?:\/\/[a-zA-Z0-9-]{2,9}\.[a-zA-Z0-9-]{2,60}\.[a-zA-Z]{2,7}")
@@ -415,6 +414,32 @@ class GoogleFormSpammer:
                             else:
                                 field_value = "".join(
                                     random.choice(chars) for _ in range(data_length)
+                                )
+
+                        elif field.validator_type == ValidatorType.REGEX:
+
+                            if field.validator_sub_type in (
+                            ValidatorSubType.REGEX_MATCH, ValidatorSubType.REGEX_CONTAINS):
+                                field_value = rstr.xeger(field.validator[0])
+
+                            elif field.validator_sub_type in (
+                                    ValidatorSubType.REGEX_NOT_MATCH, ValidatorSubType.REGEX_NOT_CONTAINS
+                            ):
+                                # Special thanks to Daniel for this (https://stackoverflow.com/a/957581)
+                                field_value = rstr.xeger(f'^((?!{field.validator[0]}).)*$')
+
+                        elif field.validator_type == ValidatorType.LENGTH:
+
+                            validator_length = int(field.validator[0])
+
+                            if field.validator_sub_type == ValidatorSubType.MAX_CHAR_COUNT:
+                                field_value = "".join(
+                                    random.choice(chars) for _ in range(validator_length - 1)
+                                )
+
+                            elif field.validator_sub_type == ValidatorSubType.MIN_CHAR_COUNT:
+                                field_value = "".join(
+                                    random.choice(chars) for _ in range(validator_length + 1)
                                 )
 
                         elif field.validator_type == ValidatorType.NUMBER:
@@ -454,6 +479,11 @@ class GoogleFormSpammer:
 
                             elif field.validator_sub_type == ValidatorSubType.BETWEEN:
                                 field_value = random.choice(range(left, right + 1))
+
+                        else:
+                            field_value = "".join(
+                                random.choice(chars) for _ in range(data_length)
+                            )
 
                     elif field.type == FieldType.CHECKBOXES:
 
@@ -499,6 +529,9 @@ class GoogleFormSpammer:
                                     choices.remove(random_choice)
 
                                 field_value = random_selected_options
+
+                        else:
+                            field_value = random.choice(field.choices).choice_name
 
                 elif field.has_choices:
                     field_value = random.choice(field.choices).choice_name
