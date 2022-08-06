@@ -38,19 +38,20 @@ To use this script just run the following command after following the Installati
 
 Main command:
 ```bash
-usage: gfs.py [-h] -u URL [-o REQUIRED] [-r REQUESTS] [-t THREADS]
+usage: gfs.py [-h] -u URL [-r REQUESTS] [-t THREADS] [--required | --no-required]
 
-A script to spam Google Forms with garbage data
+GFS v0.4 - A script to spam malicious Google Forms with garbage data
 
 options:
   -h, --help            show this help message and exit
-  -u URL, --url URL     The url of the google form
-  -o REQUIRED, --required REQUIRED
-                        If you only want to fill in the required fields
+  -u URL, --url URL     The target Google Form URL
   -r REQUESTS, --requests REQUESTS
-                        The amount of requests to execute
+                        The amount of requests to send [default: 500]
   -t THREADS, --threads THREADS
-                        The amount of threads to use
+                        The amount of threads to use [default: 50]
+  --required, --no-required
+                        If you only want to fill in the required fields (default: False)
+
 ```
 
 ## 🎉 Contributing
