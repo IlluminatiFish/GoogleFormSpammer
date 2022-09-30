@@ -80,6 +80,8 @@ class FieldType(Enum):
     DATE = 9
     TIME = 10
 
+    EMAIL_ADDRESS = 99
+
 
 class Field(object):
     """
@@ -115,11 +117,12 @@ class GFSLogger:
     """
         Logger class, used to send logging messages to the CLI
     """
+
     def __init__(self, level, message):
         self.level = level
         self.message = message
         self.color_codes = {
-            'ERROR':  'FF0000',
+            'ERROR': 'FF0000',
             'WARNING': 'EDB810'
         }
 
@@ -131,8 +134,7 @@ class GFSLogger:
 
 
 class GoogleFormSpammer:
-
-    VERSION = '0.5'
+    VERSION = '0.6'
 
     def __init__(self, form_url: str = None, required_only: bool = False) -> None:
         """
@@ -143,13 +145,13 @@ class GoogleFormSpammer:
                 required_only (bool): If you only want to fill in the required fields.
         """
 
-        FORM_URL_REGEX = "https://docs\.google\.com/forms/d/e/[A-Za-z0-9_-]{56}/formResponse"
+        FORM_URL_REGEX = "https://docs\\.google\\.com/forms/d/e/[A-Za-z0-9_-]{56}/formResponse"
 
         if form_url is None:
             GFSLogger("ERROR", "form_url cannot be None")
 
         if not re.match(
-            FORM_URL_REGEX, form_url
+                FORM_URL_REGEX, form_url
         ):
             GFSLogger("ERROR", f"form_url is not valid, must match the following regex {FORM_URL_REGEX}")
 
@@ -159,7 +161,6 @@ class GoogleFormSpammer:
 
         self.successful_request = 0
         self.errors = {}
-
 
     def _scrape_form(self) -> List[Field]:
         """
@@ -191,6 +192,15 @@ class GoogleFormSpammer:
         fields = []
 
         for div in divs:
+
+            if div.attrs.get("jscontroller") == "v4y9Mc":
+                # Is a special email field
+                field = Field()
+                field.type = FieldType.EMAIL_ADDRESS
+                field.name = 'Email'
+                field.required = True
+
+                fields.append(field)
 
             if "jsmodel" not in div.attrs.keys():
                 continue
@@ -267,7 +277,6 @@ class GoogleFormSpammer:
                 choices = []
 
                 for raw_choice in response_data[0][1]:
-
                     choice = Choice()
                     choice.choice_name = raw_choice[0]
                     choices.append(choice)
@@ -315,7 +324,18 @@ class GoogleFormSpammer:
 
         for field in scraped_form_data:
 
-            if field.type == FieldType.TIME:
+            if field.type == FieldType.EMAIL_ADDRESS:
+                email_providers = [
+                    "yahoo.com",
+                    "hotmail.com",
+                    "outlook.net",
+                    "gmail.com",
+                ]
+                post_data["emailAddress"] = "".join(
+                    random.choice(chars) for _ in range(data_length)) + "@" + random.choice(
+                    email_providers)
+
+            elif field.type == FieldType.TIME:
 
                 post_data[f"entry.{field.id}_hour"] = f"{random.randint(0, 23):02d}"
                 post_data[f"entry.{field.id}_minute"] = f"{random.randint(0, 59):02d}"
@@ -336,11 +356,12 @@ class GoogleFormSpammer:
                 field_value = None
 
                 if (
-                    field.validation  # Does the field have response validation enabled
-                    and
-                    field.validator is None  # Does the field have a validator associated to the response validation
-                    and
-                    field.validator_sub_type not in SUBVALIDATORS_WITH_NO_VALIDATION  # Does the validation subtype have a validator
+                        field.validation  # Does the field have response validation enabled
+                        and
+                        field.validator is None  # Does the field have a validator associated to the response validation
+                        and
+                        field.validator_sub_type not in SUBVALIDATORS_WITH_NO_VALIDATION
+                # Does the validation subtype have a validator
 
                 ):
                     GFSLogger(
@@ -358,7 +379,7 @@ class GoogleFormSpammer:
                         if field.validator_type == ValidatorType.REGEX:
 
                             if field.validator_sub_type in (
-                            ValidatorSubType.REGEX_MATCH, ValidatorSubType.REGEX_CONTAINS):
+                                    ValidatorSubType.REGEX_MATCH, ValidatorSubType.REGEX_CONTAINS):
                                 field_value = rstr.xeger(field.validator[0])
 
                             elif field.validator_sub_type in (
@@ -400,10 +421,13 @@ class GoogleFormSpammer:
                                     "outlook.net",
                                     "gmail.com",
                                 ]
-                                field_value = "".join(random.choice(chars) for _ in range(data_length)) + "@" + random.choice(email_providers)
+                                field_value = "".join(
+                                    random.choice(chars) for _ in range(data_length)) + "@" + random.choice(
+                                    email_providers)
 
                             elif field.validator_sub_type == ValidatorSubType.URL:
-                                field_value = rstr.xeger("http[s]?:\/\/[a-zA-Z0-9-]{2,9}\.[a-zA-Z0-9-]{2,60}\.[a-zA-Z]{2,7}")
+                                field_value = rstr.xeger(
+                                    "http[s]?:\/\/[a-zA-Z0-9-]{2,9}\.[a-zA-Z0-9-]{2,60}\.[a-zA-Z]{2,7}")
 
                             elif field.validator_sub_type == ValidatorSubType.CONTAINS:
                                 field_value = field.validator[0]
@@ -419,7 +443,7 @@ class GoogleFormSpammer:
                         elif field.validator_type == ValidatorType.REGEX:
 
                             if field.validator_sub_type in (
-                            ValidatorSubType.REGEX_MATCH, ValidatorSubType.REGEX_CONTAINS):
+                                    ValidatorSubType.REGEX_MATCH, ValidatorSubType.REGEX_CONTAINS):
                                 field_value = rstr.xeger(field.validator[0])
 
                             elif field.validator_sub_type in (
@@ -470,7 +494,8 @@ class GoogleFormSpammer:
                             elif field.validator_sub_type == ValidatorSubType.NOT_EQUAL_TO:
                                 field_value = random.choice([i for i in range(1, 20) if i != value])
 
-                            elif field.validator_sub_type in (ValidatorSubType.WHOLE_NUMBER, ValidatorSubType.IS_NUMBER):
+                            elif field.validator_sub_type in (
+                            ValidatorSubType.WHOLE_NUMBER, ValidatorSubType.IS_NUMBER):
                                 field_value = 1
 
                             elif field.validator_sub_type == ValidatorSubType.NOT_BETWEEN:
@@ -496,7 +521,8 @@ class GoogleFormSpammer:
                             # Having more selections to make than choices is not possible,
                             # exit program gracefully with appropriate error message
                             if select_count > len(choices):
-                                GFSLogger("ERROR", f"Found issue with Field(id={field.id}), cannot select {select_count} options as only {len(choices)} options exist!")
+                                GFSLogger("ERROR",
+                                          f"Found issue with Field(id={field.id}), cannot select {select_count} options as only {len(choices)} options exist!")
 
                             # Is there only one selection to be made, if so
                             # select a random option as set it as the field value
@@ -519,8 +545,8 @@ class GoogleFormSpammer:
                                     if random_choice.choice_name == '':
                                         random_selected_options.append('__other_option__')
                                         post_data[f"entry.{field.id}.other_option_response"] = "".join(
-                                                                                                random.choice(chars) for _ in range(data_length)
-                                                                                            )
+                                            random.choice(chars) for _ in range(data_length)
+                                        )
                                     else:
                                         random_selected_options.append(random_choice.choice_name)
 
@@ -548,7 +574,8 @@ class GoogleFormSpammer:
                 response.status_code (int): An integer stating the HTTP status code of the response
         """
         generated_post_data = self.generate_post_data()
-        response = requests.post(self.form_url, params=generated_post_data)
+        print(f'{generated_post_data=}')
+        response = requests.post(self.form_url, params = generated_post_data)
         return response.status_code
 
     def threader(self) -> None:
@@ -571,13 +598,17 @@ class GoogleFormSpammer:
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description=f"GFS v{GoogleFormSpammer.VERSION} - A script to spam malicious Google Forms with garbage data")
+    parser = argparse.ArgumentParser(
+        description = f"GFS v{GoogleFormSpammer.VERSION} - A script to spam malicious Google Forms with garbage data")
 
-    parser.add_argument("-u", "--url", type=str, required=True, help="The target Google Form URL")
-    parser.add_argument("-r", "--requests", type=int, default=500, help="The amount of requests to send [default: 500]")
-    parser.add_argument("-t", "--threads", type=int, default=50, help="The amount of threads to use [default: 50]")
+    parser.add_argument("-u", "--url", type = str, required = True, help = "The target Google Form URL")
+    parser.add_argument("-r", "--requests", type = int, default = 500,
+                        help = "The amount of requests to send [default: 500]")
+    parser.add_argument("-t", "--threads", type = int, default = 50,
+                        help = "The amount of threads to use [default: 50]")
 
-    parser.add_argument("--required", action=argparse.BooleanOptionalAction, default=False, required=False, help="If you only want to fill in the required fields")
+    parser.add_argument("--required", action = argparse.BooleanOptionalAction, default = False, required = False,
+                        help = "If you only want to fill in the required fields")
 
     args = parser.parse_args()
 
@@ -593,8 +624,8 @@ if __name__ == "__main__":
             ["Threads", args.threads],
             ["Required Fields", args.required],
         ],
-        tablefmt="pretty",
-        colalign=("center", "left"),
+        tablefmt = "pretty",
+        colalign = ("center", "left"),
     )
     print(f"[bold #F2B44B]{parameter_table}[/bold #F2B44B]\n")
 
@@ -605,7 +636,7 @@ if __name__ == "__main__":
     queue = Queue()
 
     for _ in range(args.threads):
-        worker = Thread(target=spammer.threader)
+        worker = Thread(target = spammer.threader)
         worker.daemon = True
         worker.start()
 
@@ -632,9 +663,9 @@ if __name__ == "__main__":
     print("\n[bold #07FA1C][=] Spammer finished![/bold #07FA1C]\n")
 
     completion_table = [
-            ["Execution Time", f"{total_time}s"],
-            ["Success Ratio", f"{spammer.successful_request}/{args.requests} ({success_ratio}%)"],
-            ["Speed", f"{req_per_sec} req/s"],
+        ["Execution Time", f"{total_time}s"],
+        ["Success Ratio", f"{spammer.successful_request}/{args.requests} ({success_ratio}%)"],
+        ["Speed", f"{req_per_sec} req/s"],
     ]
 
     # Check if any errors were caught
@@ -646,7 +677,7 @@ if __name__ == "__main__":
 
     results_table = tabulate(
         completion_table,
-        tablefmt="pretty",
-        colalign=("center", "left"),
+        tablefmt = "pretty",
+        colalign = ("center", "left"),
     )
     print(f"[bold #31EE42]{results_table}[/bold #31EE42]\n")
