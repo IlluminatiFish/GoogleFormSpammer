@@ -143,7 +143,7 @@ class GoogleFormSpammer:
                 required_only (bool): If you only want to fill in the required fields.
         """
 
-        FORM_URL_REGEX = "https://docs.google.com/forms/d/e/[A-Za-z0-9_-]{56}/formResponse"
+        FORM_URL_REGEX = "https://docs\.google\.com/forms/d/e/[A-Za-z0-9_-]{56}/formResponse"
 
         if form_url is None:
             GFSLogger("ERROR", "form_url cannot be None")
