@@ -41,7 +41,7 @@ Main command:
 ```bash
 usage: gfs.py [-h] -u URL [-r REQUESTS] [-t THREADS] [--required | --no-required]
 
-GFS v0.5 - A script to spam malicious Google Forms with garbage data
+GFS v0.6 - A script to spam malicious Google Forms with garbage data
 
 options:
   -h, --help            show this help message and exit
